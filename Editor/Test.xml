@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<messages>
+    <!--枚举配置规则-->
+    <enum name="EPlayerType" namespace="GamePlayer">
+        <field name="MAIN">2</field>
+        <field name="OTHER"/>
+    </enum>
+    <enum name="EMonsterType" namespace="GamePlayer">
+        <field name="NORMAL">2</field>
+        <field name="ELITE"/>
+        <field name="BOSS">99</field>
+    </enum>
+    <!--数据结构类配置规则-->
+    <data name="PlayerData" namespace="GamePlayer">
+        <field type="enum" enumType="EPlayerType" name="playerType"/>
+        <field type="int" name="id"/>
+        <field type="float" name="atk"/>
+        <field type="long" name="lev"/>
+        <field type="array" element="int" name="weaponArray"/>
+        <field type="list" T="int" name="friendList"/>
+        <field type="dict" Tkey="int" Tvalue="string" name="awardDict"/>
+    </data>
+    <!--消息类配置规则-->
+    <message id="1001" name="PlayerMessage" namespace="GamePlayer">
+        <field type="int" name="playerID" />
+        <field type="PlayerData" name="data"/>
+    </message>
+    <message id="1001" name="HeartMessage" namespace="GameSystem"/>
+</messages>
