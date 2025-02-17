@@ -126,7 +126,175 @@ public class GenerateCsharpProtocol
             File.WriteAllText(path + classNameStr + "Handler.cs", handlerStr);
         }
     }
-    // 生成消息类
+    //生成消息类
+    public void GenerateMsg(XmlNodeList nodes)
+    {
+        string idStr = "";
+        string namespaceStr = "";
+        string classNameStr = "";
+        string fieldStr = "";
+        string getBytesNumStr = "";
+        string writingStr = "";
+        string readingStr = "";
+
+        foreach (XmlNode dataNode in nodes)
+        {
+            idStr = dataNode.Attributes["id"].Value;
+            namespaceStr = dataNode.Attributes["namespace"].Value;
+            classNameStr = dataNode.Attributes["name"].Value;
+            XmlNodeList fields = dataNode.SelectNodes("field");
+            fieldStr = GetFieldStr(fields);
+            getBytesNumStr = GetGetBytesNumStr(fields);
+            writingStr = GetWritingStr(fields);
+            readingStr = GetReadingStr(fields);
+
+            string dataStr = "using System;\r\n" +
+                             "using System.Collections.Generic;\r\n" +
+                             "using System.Text;\r\n" +
+                             $"namespace {namespaceStr}\r\n" +
+                              "{\r\n" +
+                              $"\tpublic class {classNameStr} : BaseMsg\r\n" +
+                              "\t{\r\n" +
+                                    $"{fieldStr}" +
+                                    "\t\tpublic override int GetBytesNum()\r\n" +
+                                    "\t\t{\r\n" +
+                                        "\t\t\tint num = 8;\r\n" + //这个8代表的是 消息ID的4个字节 + 消息体长度的4个字节
+                                        $"{getBytesNumStr}" +
+                                        "\t\t\treturn num;\r\n" +
+                                    "\t\t}\r\n" +
+                                    "\t\tpublic override byte[] Writing()\r\n" +
+                                    "\t\t{\r\n" +
+                                        "\t\t\tint index = 0;\r\n" +
+                                        "\t\t\tbyte[] bytes = new byte[GetBytesNum()];\r\n" +
+                                        "\t\t\tWriteInt(bytes, GetID(), ref index);\r\n" +
+                                        "\t\t\tWriteInt(bytes, bytes.Length - 8, ref index);\r\n" +
+                                        $"{writingStr}" +
+                                        "\t\t\treturn bytes;\r\n" +
+                                    "\t\t}\r\n" +
+                                    "\t\tpublic override int Reading(byte[] bytes, int beginIndex = 0)\r\n" +
+                                    "\t\t{\r\n" +
+                                        "\t\t\tint index = beginIndex;\r\n" +
+                                        $"{readingStr}" +
+                                        "\t\t\treturn index - beginIndex;\r\n" +
+                                    "\t\t}\r\n" +
+                                    "\t\tpublic override int GetID()\r\n" +
+                                    "\t\t{\r\n" +
+                                        "\t\t\treturn " + idStr + ";\r\n" +
+                                    "\t\t}\r\n" +
+                              "\t}\r\n" +
+                              "}";
+
+            string path = SAVE_PATH + namespaceStr + "/Msg/";
+
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+
+            File.WriteAllText(path + classNameStr + ".cs", dataStr);
+
+            // 生成消息处理类
+            if(File.Exists(path+classNameStr+"Handler.cs"))
+            {
+                continue;
+            }
+            string handlerStr = $"namespace {namespaceStr}\r\n" + 
+                    "{\r\n" + 
+                        $"\tpublic class {classNameStr}Handler : BaseHandler\r\n" +
+                        "\t{\r\n" + 
+                            "\t\tpublic override void MsgHandle()\r\n" +
+                            "\t\t{\r\n" +
+                                $"\t\t\t{classNameStr} msg = message as {classNameStr};\r\n" +
+                                "\t\t\t// TODO: 添加处理逻辑\r\n" + // 提示添加处理逻辑
+                            "\t\t}\r\n" +
+                        "\t}\r\n" + 
+                    "}\r\n";
+            // 保存Csharp脚本
+            File.WriteAllText(path + classNameStr + "Handler.cs", handlerStr);
+        }
+        Debug.Log("消息类生成结束");
+    }
+
+    // 生成消息池
+    public void GenerateMsgPool(XmlNodeList nodes)
+    {
+        List<string> ids = new List<string>();
+        List<string> names = new List<string>();
+        List<string> nameSpaces = new List<string>();
+
+        foreach(XmlNode dataNode in nodes)
+        {
+            string id = dataNode.Attributes["id"].Value;
+            if(!ids.Contains(id)) {
+                ids.Add(id);
+            } else {
+                Debug.Log("配置文件中存在相同ID的消息：" + id);
+            }
+
+            string name = dataNode.Attributes["name"].Value;
+            if(!names.Contains(name)) {
+                names.Add(name);
+            } else {
+                Debug.Log("存在类名相同的消息: " + name);
+            }
+
+            string nameSpace = dataNode.Attributes["namespace"].Value;
+            if(!nameSpaces.Contains(nameSpace)) {
+                nameSpaces.Add(nameSpace);
+            }
+        }
+
+        string nameSpaceStr = "";
+        for(int i=0; i<nameSpaces.Count; i++)
+        {
+            nameSpaceStr += $"using {nameSpaces[i]};\r\n";
+        }
+
+        string registerStr = "";
+        for(int i=0; i<ids.Count; i++)
+        {
+            registerStr += $"\t\tRegister({ids[i]}, typeof({names[i]}), typeof({names[i]}Handler));\r\n";
+        }
+
+        string msgPoolStr = "using System;\r\n" + "using System.Collections.Generic;\r\n" +
+                            nameSpaceStr + 
+                            "public class MsgPool\r\n" +
+                            "{\r\n" + 
+                                "\tprivate Dictionary<int, Type> messages = new Dictionary<int, Type>();\r\n" + 
+                                "\tprivate Dictionary<int, Type> handlers = new Dictionary<int, Type>();\r\n" + 
+                                "\tpublic MsgPool()\r\n" + 
+                                "\t{\r\n" + 
+                                    registerStr + 
+                                "\t}\r\n" + 
+                                "\tprivate void Register(int mesageID, Type messageType, Type handlerType)\r\n" + 
+                                "\t{\r\n" + 
+                                    "\t\tmessages.Add(mesageID, messageType);\r\n" + 
+                                    "\t\thandlers.Add(mesageID, handlerType);\r\n" + 
+                                "\t}\r\n" + 
+                                "\tpublic BaseMsg GetMessage(int messageID)\r\n" + 
+                                "\t{\r\n" + 
+                                    "\t\tif(!messages.ContainsKey(messageID))\r\n" +
+                                    "\t\t{\r\n" + 
+                                        "\t\t\treturn null;\r\n" + 
+                                    "\t\t}\r\n" + 
+                                    "\t\treturn Activator.CreateInstance(messages[messageID]) as BaseMsg;\r\n" + 
+                                "\t}\r\n" + 
+                                "\tpublic BaseHandler GetHandler(int messageID)\r\n" + 
+                                "\t{\r\n" + 
+                                    "\t\tif(!handlers.ContainsKey(messageID))\r\n" +
+                                    "\t\t{\r\n" + 
+                                        "\t\t\treturn null;\r\n" + 
+                                    "\t\t}\r\n" + 
+                                    "\t\treturn Activator.CreateInstance(handlers[messageID]) as BaseHandler;\r\n" + 
+                                "\t}\r\n" + 
+                            "}\r\n"; 
+
+        string path = SAVE_PATH + "/Pool/";
+        if(!Directory.Exists(path)) {
+            Directory.CreateDirectory(path);
+        }
+
+        File.WriteAllText(path + "MsgPool.cs", msgPoolStr);
+        Debug.Log("消息池生成结束");
+    }
 
     // 获取所有成员变量声明内容
     private string GetAllFieldsStr(XmlNodeList fields)

@@ -15,6 +15,8 @@ public class ProtocolGenerate
         XmlNode root = GetRoot("messages");
         _generator.GenerateEnum(GetChildrenNodes(root, "enum"));
         _generator.GenerateData(GetChildrenNodes(root, "data"));
+        _generator.GenerateMsg(GetChildrenNodes(root, "message"));
+        _generator.GenerateMsgPool(GetChildrenNodes(root, "message"));
 
         AssetDatabase.Refresh(); // 刷新Assets文件夹
     }
