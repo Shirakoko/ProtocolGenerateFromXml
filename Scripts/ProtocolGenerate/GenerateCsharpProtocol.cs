@@ -105,6 +105,25 @@ public class GenerateCsharpProtocol
 
             // 字符串保存为枚举脚本文件
             File.WriteAllText(path + classNameStr + ".cs", dataStr);
+
+            // 生成消息处理类
+            if(File.Exists(path+classNameStr+"Handler.cs"))
+            {
+                continue;
+            }
+            string handlerStr = $"namespace {namespaceStr}\r\n" + 
+                    "{\r\n" + 
+                        $"\tpublic class {classNameStr}Handler : BaseHandler\r\n" +
+                        "\t{\r\n" + 
+                            "\t\tpublic override void MsgHandle()\r\n" +
+                            "\t\t{\r\n" +
+                                $"\t\t\t{classNameStr} msg = message as {classNameStr};\r\n" +
+                                "\t\t\t// TODO: 添加处理逻辑\r\n" + // 提示添加处理逻辑
+                            "\t\t}\r\n" +
+                        "\t}\r\n" + 
+                    "}\r\n";
+            // 保存Csharp脚本
+            File.WriteAllText(path + classNameStr + "Handler.cs", handlerStr);
         }
     }
     // 生成消息类
